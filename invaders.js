@@ -10,18 +10,26 @@
 			'Alien1': [73, 106 ],
 			'Alien3': [ 146, 178 ] 
 		},
-		COLUMNS=11;
+		COLUMNS=11,
+		SCORING={
+			Alien0: 30,
+			Alien1: 20,
+			Alien2: 20,
+			Alien3: 10,
+			Alien4: 10
+		};
 		
 		ASPRITES[ 'Alien2' ]=ASPRITES[ 'Alien1' ];
 		ASPRITES[ 'Alien4' ] = ASPRITES[ 'Alien3' ];
 		
 	function Invaders(){
 		
-		var scoreKeeper=Crafty.e( 'Scorekeeper' );
-		console.log( 'sk', scoreKeeper );
 		Crafty.init( 480,  544 );
 		
-		Crafty.audio.add( 'shoot', 'sounds/shoot.wav' );
+		Crafty.audio.add({
+			'shoot': [ 'sounds/shoot.wav', 'sounds/shoot.ogg', 'sounds/shoot.mp3' ],
+			'alienShoot': 'sounds/invaderkilled.wav'
+		});
 		
 		Crafty.load( [ 'sprite.png' ], function(){
 			Crafty.sprite( 1, 'sprite.png', {
@@ -54,9 +62,10 @@
 							this.destroy();
 							arr[ 0 ].obj.destroy();
 						});
-						Crafty.audio.play( 'sheet' ); 
+						Crafty.audio.play( 'shoot' ); 
 				}
 				else if ( this.has( 'Alien' ) ){
+					Crafty.audio.play( 'alienShoot' );
 					Crafty.e( '2D, DOM, AlienBullet, Collision' )
 						.attr({ y: this.y + this.h, x: this.x + ( this.w / 2 )})
 						.bind( 'EnterFrame', function(){
@@ -67,8 +76,8 @@
 			}
 		});
 		Crafty.c( 'Scorekeeper', {
-			init: function(){
-				this.requires( '2D, DOM, Persist, Color' )
+			init: function(){ console.log( 'init scorekeeper' );
+				this.addComponent( '2D, DOM, Persist, Color' )
 					.color( 'red' );
 				this.games=[];
 				if ( localStorage && JSON ){
@@ -117,8 +126,25 @@
 		Crafty.scene( 'Invaders', function(){
 			var rows=[],
 				beat=50, // ms ( gets lower as less aliens live )
-				pauseText=null,
-				timer=null;
+				score=0,
+				lives=4,
+				timer=null,
+				HUD={
+					p1: Crafty.e( '2D, DOM, Text' )
+						.text( 'SCORE <1>')
+						.attr({ x: 10, y: 10, w: 100 })
+						.css({ color: '#fff', 'font-size': '16px'}),
+					hi: Crafty.e( '2D, DOM, Text' )
+						.text( 'HI-SCORE')
+						.attr({ x: 150, y: 10, w: 100 })
+						.css({ color: '#fff', 'font-size': '16px', 'text-align': 'center'}),
+					p1score: Crafty.e( '2D, DOM, Text')
+						.text( '0' )
+						.attr({ x: 20, y: 30, w: 100 })
+						.css({ color: '#fff', 'font-size': '16px' })
+				};
+				
+			Crafty.background( '#000' );
 			
 			Crafty.e( 'Keyboard' )
 				.bind( 'KeyDown', function( e ){
@@ -126,7 +152,7 @@
 						if ( Crafty.isPaused() ){
 							Crafty( 'PauseText' ).destroy();
 						}
-						else{ console.log( 'setting pauseText' );
+						else{ 
 							Crafty.e('2D, DOM, Text, PauseText'  )
 								.css({ 'text-align': 'center', 'font-size': '32px', 'font-weight': 'bold', color: '#fff', z: 100 })
 								.text( 'PAUSED' )
@@ -136,10 +162,6 @@
 					}
 				});
 				
-			scoreKeeper.attr({
-				x: 30, y: 10, w: 200, h: 100 
-			});
-			Crafty.background( '#000' );
 			
 			/* OUR HERO */
 			Crafty.e( '2D, DOM, Collision, Ship, Keyboard, Shoot' )
@@ -163,13 +185,19 @@
 				rows[ j ]=[];
 				for ( i=0; i<COLUMNS; i++ ){
 					rows[ j ].push( Crafty.e( '2D, DOM, Tween, Shoot, Alien, Collision, '+ROWS[ j ] )
-						.attr({ y: 30 + ( j * 32 ), x: 10 + ( 32 * i ) })
+						.attr({ y: 60 + ( j * 32 ), x: 10 + ( 32 * i ) })
 						.onHit( 'Bullet', function( arr ){
 							arr[ 0 ].obj.destroy();// destroy the bullet
 							this.sprite( 435, 273, 24, 24 )
 								.timeout( function(){
 									this.destroy();
 								}, 200 );
+							for ( var k in SCORING ){
+								if ( this.has( k )){
+									updateScore( SCORING[ k ] );
+									break;
+								}
+							}
 						})
 					);
 				}
@@ -182,6 +210,8 @@
 			}
 			startFormation();
 			
+			function die(){
+			}
 			function startFormation(){
 				var direction=1, // LEFT TO RIGHT TO START
 					speed=3;
@@ -235,16 +265,22 @@
 							localTimer=setTimeout( function(){ move( i-1 )}, beat );
 
 					}
-				if ( Crafty( 'AlienBullet' ).length < 2 ) {
-					var aliens=Crafty( 'Alien' ),
-						rand=Crafty.math.randomInt( 0, aliens.length - 1 );
-					Crafty( aliens[ rand ] ).shoot();
-				}
+					if ( Crafty( 'AlienBullet' ).length < 2 ) {
+						var aliens=Crafty( 'Alien' );
+						if ( aliens.length ){
+							var rand=Crafty.math.randomInt( 0, aliens.length - 1 );
+							Crafty( aliens[ rand ] ).shoot();
+						}
+					}
 				}, beat * 5 );
 			}
 			
 			function stopFormation(){
 				clearTimeout( timer );
+			}
+			function updateScore( s ){
+				score=score + ( s ? s : 0 );
+				HUD.p1score.text( score );
 			}
 		});
 		
