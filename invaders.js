@@ -130,7 +130,7 @@
 			'explosion': [ 'sounds/explosion.wav','sounds/explosion.mp3','sounds/explosion.ogg'],
 			'invader1': [ 'sounds/fastinvader1.wav','sounds/fastinvader1.mp3','sounds/fastinvader1.ogg' ],
 			'spaceship': [ 'sounds/ufo_highpitch.wav','sounds/ufo_highpitch.mp3','sounds/ufo_highpitch.ogg' ],
-			'alienShoot': 'sounds/invaderkilled.wav'
+			'invaderkilled': ['sounds/invaderkilled.wav', 'sounds/invaderkilled.mp3', 'sounds/invaderkilled.ogg' ]
 		});
 		
 		Crafty.load( [ 'sprite.jpg' ], function(){
@@ -199,16 +199,16 @@
 			if ( Crafty.isPaused() ) Crafty.pause( true );
 			Crafty.background('#000');
 			Crafty.e( "2D, DOM, Sign" )
-				.attr({ x: 120, w: 240,y: 30,  h: 170 });
+				.attr({ x: 120, w: 240,y: 170,  h: 170 });
 				
 			Crafty.e( "2D, DOM, BigAlien3")
-				.attr({ x: 50, y: 330 });
+				.attr({ x: 50, y: 80 });
 				
 			Crafty.e( "2D, DOM, BigAlien2")
-				.attr({ x: 350, y: 250 });
+				.attr({ x: 350, y: 40 });
 				
 			Crafty.e( "2D, DOM, BigSpaceship")
-				.attr({ x: 120, y: 210 });
+				.attr({ x: 180, y: 10 });
 				
 			Crafty.e( "2D, DOM, BigShip")
 				.attr({ x: 240, y: 395 });
@@ -216,8 +216,8 @@
 			Crafty.e("2D, DOM, Text")
 				.attr({ w: 390, h: 50, x: 43, y: 470, alpha: '.5'})
 				.text('Press any key to play')
-				.css({ 'text-align': 'center', color: '#fff', 'font-size': 40, 'font-weight': 'bold', 'line-height': 50 })
-				.textFont({ family: 'Press Start 2P' });
+				.css({ 'text-align': 'center', color: '#fff', 'font-size': '18px', 'font-weight': 'bold', 'line-height': 50, 'font-family': 'Press Start 2P'});
+				
 			Crafty.e("Keyboard")
 				.bind( 'KeyDown', function( e ){
 					//~ if ( e.keyCode === Crafty.keys.ENTER ){
@@ -234,23 +234,24 @@
 				level=0,
 				lives=4,
 				timer=null,
+				state="idle",
 				config=GAMELEVELS[ level ],
 				HUD={
 					p1: Crafty.e( '2D, DOM, Text' )
 						.text( 'SCORE <1>')
-						.attr({ x: 10, y: 10, w: 100 })
+						.attr({ x: 10, y: 10, w: 140 })
 						.css({ color: '#fff', 'font-size': '1em'}),
 					p1score: Crafty.e( '2D, DOM, Text')
 						.text( '0' )
-						.attr({ x: 20, y: 30, w: 100 })
+						.attr({ x: 20, y: 30, w: 140 })
 						.css({ color: '#fff', 'font-size': '16px' }),
 					hi: Crafty.e( '2D, DOM, Text' )
 						.text( 'HI-SCORE')
-						.attr({ x: 150, y: 10, w: 100 })
+						.attr({ x: 150, y: 10, w: 200 })
 						.css({ color: '#fff', 'font-size': '16px', 'text-align': 'center'}),
 					hiscore: Crafty.e( '2D, DOM, Text' )
 						.text( '0')
-						.attr({ x: 150, y: 30, w: 100 })
+						.attr({ x: 150, y: 30, w: 200 })
 						.css({ color: '#fff', 'font-size': '16px', 'text-align': 'center'})
 				};
 				
@@ -293,15 +294,16 @@
 					arr[ 0 ].obj.destroy();
 					die();
 				})
-				.onHit( 'Alien', function(){ // GAME OVER BITCHES
-					lives=0;
-					die();
-				});
+				//~ .onHit( 'Alien', function(){ // GAME OVER BITCHES
+					//~ lives=0;
+					//~ die();
+				//~ });
 				
 			levelUp(); // starting the game
 			
 			
 			function die(){
+				state="idle";
 				var dieTimer;
 				lives=lives-1;
 				Crafty.audio.play( 'explosion' );
@@ -323,6 +325,7 @@
 						ship
 							.sprite( 276, 224, 28, 24 )
 							.attr({ x:170, y: 500 });
+						state="playing";
 					}
 				}, 1500 );
 			}
@@ -352,6 +355,7 @@
 										.attr({ x: this.x, y: this.y });
 										
 									arr[ 0 ].obj.destroy();// destroy the bullet
+									Crafty.audio.play( 'invaderkilled' );
 									setTimeout( function(){ exp.destroy(); }, 250 );
 									for ( var k in SCORING ){
 										if ( this.has( k )){
@@ -363,6 +367,7 @@
 									
 									switch( Crafty( 'Alien' ).length ){
 										case 0:
+											state="idle";
 											levelUp();
 											break;
 										case 45:
@@ -409,61 +414,65 @@
 				var direction=1,
 				speed=2,
 				tick=config.beat;
+				state="playing";
 				runFormation();
 				function runFormation(){
 					var minX=0, maxX=Crafty.viewport.width, localTimer=null, drop=false;
 					clearTimeout( timer );
-					if ( Crafty.isPaused() ){
+					if ( Crafty.isPaused() || state !== 'playing'){
 						timer=setTimeout( runFormation, 500 );
 						return;
 					}
 					move( 4 );
 					function move( i ){
-							//clearTimeout( localTimer );
-							if ( i<0 ){ // finished a cycle
-								var aliens=Crafty( 'Alien' );
+						clearTimeout( localTimer );
+						if ( i<0 ){ // finished a cycle
+							var aliens=Crafty( 'Alien' );
+							aliens.each( function(){
+								if (( this.x + this.w > maxX && direction === 1 ) || ( this.x < minX && direction === -1 )){
+									drop=true;
+									direction=-direction;
+								}
+							});
+							
+							if ( drop ){
 								aliens.each( function(){
-									if (( this.x + this.w > maxX && direction === 1 ) || ( this.x < minX && direction === -1 )){
-										drop=true;
-										direction=-direction;
+									this.y = this.y + 32;
+									if ( this.y + this.h >= ship.y ) {
+										lives=0;
+										die();
 									}
 								});
-								
-								if ( drop ){
-									aliens.each( function(){
-										this.y = this.y + 32;
-										drop=false;
-									});
-								}
-								
-								if ( aliens.length < 50 ) tick=config.beat/1.1;
-								if ( aliens.length < 45 ) tick=config.beat/1.3;
-								if ( aliens.length < 40 ) tick=config.beat/1.5;
-								if ( aliens.length < 30 ) tick=config.beat/1.8;
-								if ( aliens.length < 25 ) tick=config.beat/2.1;
-								if ( aliens.length < 20 ) tick=config.beat/2.3;
-								if ( aliens.length < 15 ) tick=config.beat/2.8;
-								if ( aliens.length < 10 ) tick=config.beat/3;
-								if ( aliens.length < 5 ) tick=config.beat/3.2;
-								if ( aliens.length < 2 ) tick=config.beat/6 ;
-								return;
+								drop=false;
 							}
-							var cmp=Crafty( 'Alien'+i );
-							if ( !cmp.length ){
-								move( i - 1 );
-								return;
-							}
-							cmp.each( function(){
-								var s=200 / tick;
-								console.log( 's', s, 'tick', tick );
-								this.x=this.x + ( direction * s );
-								var ax=ASPRITES[ 'Alien'+i ],
-									cd=this.__coord;
-								this.sprite(cd[ 0 ]===ax[ 0 ] ? ax[ 1 ]: ax[ 0 ], cd[ 1 ], cd[ 2 ], cd[ 3 ] );
-								
-							});		
-							localTimer=setTimeout( function(){ move( i-1 )}, tick );
+							
+							if ( aliens.length < 50 ) tick=config.beat/1.1;
+							if ( aliens.length < 45 ) tick=config.beat/1.3;
+							if ( aliens.length < 40 ) tick=config.beat/1.5;
+							if ( aliens.length < 30 ) tick=config.beat/1.8;
+							if ( aliens.length < 25 ) tick=config.beat/2.1;
+							if ( aliens.length < 20 ) tick=config.beat/2.3;
+							if ( aliens.length < 15 ) tick=config.beat/2.8;
+							if ( aliens.length < 10 ) tick=config.beat/3;
+							if ( aliens.length < 5 ) tick=config.beat/3.2;
+							if ( aliens.length < 2 ) tick=config.beat/6 ;
+							return;
 						}
+						var cmp=Crafty( 'Alien'+i );
+						if ( !cmp.length ){
+							move( i - 1 );
+							return;
+						}
+						cmp.each( function(){
+							var s=200 / tick;
+							this.x=this.x + ( direction * s );
+							var ax=ASPRITES[ 'Alien'+i ],
+								cd=this.__coord;
+							this.sprite(cd[ 0 ]===ax[ 0 ] ? ax[ 1 ]: ax[ 0 ], cd[ 1 ], cd[ 2 ], cd[ 3 ] );
+							
+						});		
+						localTimer=setTimeout( function(){ move( i-1 )}, tick );
+					}
 					if ( Crafty( 'AlienBullet' ).length < config.maxAlienBullets ) {
 						var aliens=Crafty( 'Alien' );
 						if ( aliens.length ){
